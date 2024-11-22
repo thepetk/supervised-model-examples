@@ -29,7 +29,7 @@ class PreProcessor:
         self.data = data
         self.null_policy = self._get_null_policy(null_policy)
         self.remove_columns = remove_columns
-        self.one_hot_encoder = OneHotEncoder(sparse_output=True)
+        self.one_hot_encoder = OneHotEncoder(sparse_output=False)
 
     def _get_null_policy(
         self, null_policy: 'Literal["any", "all"]'
@@ -148,4 +148,6 @@ if __name__ == "__main__":
 
     # Generate the new csv files
     train_dataset.to_csv("data_train.csv", index=False)
+    output.to_csv("result_train.csv", index=False)
     test_dataset.to_csv("data_test.csv", index=False)
+    output.to_csv("result_test.csv", index=False)
