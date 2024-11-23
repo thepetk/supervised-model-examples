@@ -94,7 +94,7 @@ class PreProcessor:
         """concatinates data with a given dataframe"""
         return pd.concat([self.data, concat_data_frame], axis=1)
 
-    def preprocess(self) -> "tuple[list[float, pd.DataFrame]]":
+    def preprocess(self) -> "pd.DataFrame":
         """
         applies the data preprocessing. Returns a tuple with the output and the preprocessed dataset
         """
@@ -116,13 +116,7 @@ class PreProcessor:
         # concatinate with one hot encoder result
         self.data = self._concatinate(_one_hot_encoding_df)
 
-        # prepare the output
-        output = self.data["quality_score"]
-
-        # prepare the features
-        features = self.data.drop(columns=["quality_score"])
-
-        return output, features
+        return self.data
 
 
 if __name__ == "__main__":
@@ -141,14 +135,22 @@ if __name__ == "__main__":
             "harvest_date",
         ],
     )
-    output, dataset = data_manager.preprocess()
+    dataset = data_manager.preprocess()
 
     # Split into two sets (train/validation and test)
     train_dataset = dataset.sample(frac=0.8, random_state=45)
     test_dataset = dataset.drop(train_dataset.index)
 
+    # prepare the output
+    output_train = train_dataset["quality_score"]
+    output_test = test_dataset["quality_score"]
+
+    # prepare the features
+    train_dataset = train_dataset.drop(columns=["quality_score"])
+    test_dataset = test_dataset.drop(columns=["quality_score"])
+
     # Generate the new csv files
     train_dataset.to_csv("data_train.csv", index=False, header=False)
-    output.to_csv("result_train.csv", index=False, header=False)
+    output_train.to_csv("result_train.csv", index=False, header=False)
     test_dataset.to_csv("data_test.csv", index=False, header=False)
-    output.to_csv("result_test.csv", index=False, header=False)
+    output_test.to_csv("result_test.csv", index=False, header=False)
