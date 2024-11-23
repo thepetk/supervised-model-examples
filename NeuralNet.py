@@ -13,14 +13,12 @@ VALIDATION_RATIO = 0.15
 
 
 # activation methods
-def relu(z: float) -> float:
-    return np.maximum(z, 0)
+def sigmoid(z):
+    return 1 / (1 + np.exp(-z))
 
 
-def relu_derivative(z):
-    z[z <= 0] = 0
-    z[z > 0] = 1
-    return z
+def sigmoid_derivative(z):
+    return z * (1 - z)
 
 
 class NeuralNet:
@@ -42,7 +40,7 @@ class NeuralNet:
         self.xi[0] = x.reshape(-1, 1)
         for layer in range(1, self.L):
             z = np.dot(self.weights[layer - 1], self.xi[layer - 1])
-            self.xi[layer] = relu(z)
+            self.xi[layer] = sigmoid(z)
         return self.xi[-1]
 
     def backward(self, y: "np.ndarray") -> "tuple[np.ndarray, np.ndarray]":
@@ -54,7 +52,7 @@ class NeuralNet:
             if layer > 1:
                 residual = np.dot(
                     self.weights[layer - 1].T, residual
-                ) * relu_derivative(self.xi[layer - 1])
+                ) * sigmoid_derivative(self.xi[layer - 1])
 
         return weight_gradients
 
