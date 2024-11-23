@@ -13,11 +13,11 @@ VALIDATION_RATIO = 0.15
 
 
 # activation methods
-def sigmoid(z):
+def fact(z):
     return 1 / (1 + np.exp(-z))
 
 
-def sigmoid_derivative(z):
+def fact_derivative(z):
     return z * (1 - z)
 
 
@@ -29,40 +29,40 @@ class NeuralNet:
         # initialize all neurons for all given layers
         self.xi: "list[np.ndarray]" = []
         for layer in range(self.L):
-            self.xi.append(np.zeros(layers[layer]))
+            self.xi.append(np.zeros(self.n[layer]))
 
         # initialize all weights for all given layers
-        self.weights: "list[np.ndarray]" = []
+        self.w: "list[np.ndarray]" = []
         for layer in range(1, self.L):
-            self.weights.append(np.zeros((layers[layer], layers[layer - 1])))
+            self.w.append(np.zeros((self.n[layer], self.n[layer - 1])))
 
     def forward(self, x: "np.ndarray") -> "np.ndarray":
         self.xi[0] = x.reshape(-1, 1)
         for layer in range(1, self.L):
-            z = np.dot(self.weights[layer - 1], self.xi[layer - 1])
-            self.xi[layer] = sigmoid(z)
+            z = np.dot(self.w[layer - 1], self.xi[layer - 1])
+            self.xi[layer] = fact(z)
         return self.xi[-1]
 
     def backward(self, y: "np.ndarray") -> "tuple[np.ndarray, np.ndarray]":
         residual = self.xi[-1] - y
-        weight_gradients = [None] * self.L
+        d_w = [None] * self.L
 
         for layer in reversed(range(self.L)):
-            weight_gradients[layer] = np.dot(residual, self.xi[layer - 1].T)
+            d_w[layer] = np.dot(residual, self.xi[layer - 1].T)
             if layer > 1:
-                residual = np.dot(
-                    self.weights[layer - 1].T, residual
-                ) * sigmoid_derivative(self.xi[layer - 1])
+                residual = np.dot(self.w[layer - 1].T, residual) * fact_derivative(
+                    self.xi[layer - 1]
+                )
 
-        return weight_gradients
+        return d_w
 
     def update_weights(
         self,
-        weight_gradients: "list[np.ndarray]",
+        d_w: "list[np.ndarray]",
         learning_rate: "float",
     ) -> None:
         for layer in range(1, self.L):
-            self.weights[layer - 1] -= learning_rate * weight_gradients[layer]
+            self.w[layer - 1] -= learning_rate * d_w[layer]
 
     def compute_mean_square_error(self, data: "np.ndarray", y: "np.ndarray") -> Any:
         error = 0.0
@@ -99,10 +99,10 @@ class NeuralNet:
                 self.forward(data_train[m])
 
                 # Get the weight gradients after backward propagation
-                weight_gradients = self.backward(y_train[m])
+                d_w = self.backward(y_train[m])
 
                 # Adjust weight according to results of training
-                self.update_weights(weight_gradients, learning_rate)
+                self.update_weights(d_w, learning_rate)
 
             # After an epoch is finished calculate the error for training and validation sets
             train_error = self.compute_mean_square_error(data_train, y_train)
