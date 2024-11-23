@@ -3,7 +3,7 @@ import numpy as np
 
 DATA_TEST_PATH = "data_test.csv"
 DATA_TRAIN_PATH = "data_train.csv"
-HIDDEN_LAYERS = [40, 20, 5]
+HIDDEN_LAYERS = [32, 12]
 LEARNING_RATE = 0.01
 NUM_OF_EPOCHS = 1000
 OUTPUT_LAYER = [1]
@@ -13,12 +13,12 @@ VALIDATION_RATIO = 0.15
 
 
 # activation methods
-def fact(z):
-    return 1 / (1 + np.exp(-z))
+def fact(x: "np.ndarray") -> "np.ndarray":
+    return np.maximum(0, x)
 
 
-def fact_derivative(z):
-    return z * (1 - z)
+def fact_derivative(x: "np.ndarray") -> "np.ndarray":
+    return np.where(x > 0, 1, 0)
 
 
 class NeuralNet:
@@ -31,31 +31,31 @@ class NeuralNet:
         for layer in range(self.L):
             self.xi.append(np.zeros(self.n[layer]))
 
-        # initialize all weights and thresholds for all given layers
+        # initialize randomly all weights and thresholds for all given layers
         self.w: "list[np.ndarray]" = []
         self.theta: "list[np.ndarray]" = []
         for layer in range(1, self.L):
-            self.w.append(np.zeros((self.n[layer], self.n[layer - 1])))
-            self.theta.append(np.zeros((self.n[layer], 1)))
+            self.w.append(np.random.randn(layers[layer], layers[layer - 1]))
+            self.theta.append(np.random.randn(self.n[layer], 1))
 
     def forward(self, x: "np.ndarray") -> "np.ndarray":
         self.xi[0] = x.reshape(-1, 1)
         for layer in range(1, self.L):
-            z = self.w[layer - 1] @ self.xi[layer - 1] + self.theta[layer - 1]
-            self.xi[layer] = fact(z)
+            h = self.w[layer - 1] @ self.xi[layer - 1] - self.theta[layer - 1]
+            self.xi[layer] = fact(h)
         return self.xi[-1]
 
     def backward(self, y: "np.ndarray") -> "tuple[np.ndarray, np.ndarray]":
-        residual = self.xi[-1] - y
+        delta = self.xi[-1] - y
         d_w = [None] * self.L
         d_theta = [None] * self.L
 
         for layer in reversed(range(self.L)):
-            d_w[layer] = residual @ self.xi[layer - 1].T
-            d_theta[layer] = residual
+            d_w[layer] = delta @ self.xi[layer - 1].T
+            d_theta[layer] = delta
             if layer > 1:
-                residual = (
-                    self.w[layer - 1].T @ residual * fact_derivative(self.xi[layer - 1])
+                delta = (
+                    self.w[layer - 1].T @ delta * fact_derivative(self.xi[layer - 1])
                 )
 
         return d_w, d_theta
@@ -67,8 +67,10 @@ class NeuralNet:
         learning_rate: "float",
     ) -> None:
         for layer in range(1, self.L):
-            self.w[layer - 1] -= learning_rate * d_w[layer]
-            self.theta[layer - 1] -= learning_rate * d_theta[layer]
+            d_w_prev = d_w[layer]
+            d_theta_prev = d_theta[layer]
+            self.w[layer - 1] += learning_rate * d_w_prev
+            self.theta[layer - 1] += learning_rate * d_theta_prev
 
     def compute_mean_square_error(self, data: "np.ndarray", y: "np.ndarray") -> Any:
         error = 0.0
@@ -104,7 +106,7 @@ class NeuralNet:
                 # Run the forward propagation
                 self.forward(data_train[m])
 
-                # Get the weight gradients after backward propagation
+                # Get the weight and threshold changes after backward propagation
                 d_w, d_theta = self.backward(y_train[m])
 
                 # Adjust weight according to results of training
