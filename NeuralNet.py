@@ -12,7 +12,7 @@ RESULTS_TRAIN_PATH = "result_train.csv"
 VALIDATION_RATIO = 0.15
 
 
-# activation methods
+# activation methods (relu + relu_derivative)
 def fact(x: "np.ndarray") -> "np.ndarray":
     return np.maximum(0, x)
 
@@ -39,6 +39,9 @@ class NeuralNet:
             self.theta.append(np.random.randn(self.n[layer], 1))
 
     def forward(self, x: "np.ndarray") -> "np.ndarray":
+        """
+        performs feed forward propagation for a given x train data array
+        """
         self.xi[0] = x.reshape(-1, 1)
         for layer in range(1, self.L):
             h = self.w[layer - 1] @ self.xi[layer - 1] - self.theta[layer - 1]
@@ -46,6 +49,9 @@ class NeuralNet:
         return self.xi[-1]
 
     def backward(self, y: "np.ndarray") -> "tuple[np.ndarray, np.ndarray]":
+        """
+        performs back propagation for a given y array with the result
+        """
         delta = self.xi[-1] - y
         d_w = [None] * self.L
         d_theta = [None] * self.L
