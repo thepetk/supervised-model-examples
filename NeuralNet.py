@@ -3,7 +3,7 @@ import numpy as np
 
 DATA_TEST_PATH = "data_test.csv"
 DATA_TRAIN_PATH = "data_train.csv"
-HIDDEN_LAYERS = [30, 10, 4]
+HIDDEN_LAYERS = [40, 20, 5]
 LEARNING_RATE = 0.01
 NUM_OF_EPOCHS = 1000
 OUTPUT_LAYER = [1]
