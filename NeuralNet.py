@@ -17,7 +17,7 @@ def relu(x: "np.ndarray") -> "np.ndarray":
     return np.maximum(0, x)
 
 
-def fact_derivative(x: "np.ndarray") -> "np.ndarray":
+def relu_derivative(x: "np.ndarray") -> "np.ndarray":
     return np.where(x > 0, 1, 0)
 
 
@@ -28,6 +28,7 @@ class NeuralNet:
         units_per_layer: "list[int]",
         learning_rate: "float",
         fact: "Callable[...]",
+        fact_derivative: "Callable[...]",
         validation_percentage: "float",
         num_of_epochs: "int",
     ) -> None:
@@ -42,6 +43,7 @@ class NeuralNet:
         # and number of epochs
         self.learning_rate = learning_rate
         self.fact = fact
+        self.fact_derivative = fact_derivative
         self.validation_percentage = validation_percentage
         self.num_of_epochs = num_of_epochs
 
@@ -80,7 +82,9 @@ class NeuralNet:
             d_theta[layer] = delta
             if layer > 1:
                 delta = (
-                    self.w[layer - 1].T @ delta * fact_derivative(self.xi[layer - 1])
+                    self.w[layer - 1].T
+                    @ delta
+                    * self.fact_derivative(self.xi[layer - 1])
                 )
 
         return d_w, d_theta
@@ -93,7 +97,7 @@ class NeuralNet:
         for layer in range(1, self.L):
             d_w_prev = d_w[layer]
             d_theta_prev = d_theta[layer]
-            self.w[layer - 1] += self.learning_rate * d_w_prev
+            self.w[layer - 1] -= self.learning_rate * d_w_prev
             self.theta[layer - 1] += self.learning_rate * d_theta_prev
 
     def _compute_mean_square_error(
@@ -174,6 +178,7 @@ if __name__ == "__main__":
         units_per_layer=total_layers,
         learning_rate=LEARNING_RATE,
         fact=relu,
+        fact_derivative=relu_derivative,
         validation_percentage=VALIDATION_RATIO,
         num_of_epochs=NUM_OF_EPOCHS,
     )
