@@ -1,4 +1,5 @@
 from typing import Callable
+import matplotlib.pyplot as plt
 import numpy as np
 
 DATA_TEST_PATH = "data_test.csv"
@@ -7,6 +8,7 @@ HIDDEN_LAYERS = [32, 12]
 LEARNING_RATE = 0.01
 NUM_OF_EPOCHS = 1000
 OUTPUT_LAYER = [1]
+PLOT_FIGURE_SIZE = (8, 6)
 RESULTS_TEST_PATH = "result_test.csv"
 RESULTS_TRAIN_PATH = "result_train.csv"
 VALIDATION_RATIO = 0.15
@@ -19,6 +21,31 @@ def relu(x: "np.ndarray") -> "np.ndarray":
 
 def relu_derivative(x: "np.ndarray") -> "np.ndarray":
     return np.where(x > 0, 1, 0)
+
+
+# method to plot the evolution of the neural network
+def plot(
+    test_error: "float",
+    errors: "np.ndarray",
+    figsize: "tuple[int, int]" = PLOT_FIGURE_SIZE,
+) -> None:
+    _num_of_epochs = range(1, len(errors[0]) + 1)
+
+    plt.figure(figsize=figsize)
+    plt.plot(_num_of_epochs, errors[0], label="Training Error", marker="o")
+    plt.plot(_num_of_epochs, errors[1], label="Validation Error", marker="x")
+
+    # Add labels, title, legend, and grid
+    plt.xlabel("Epochs")
+    plt.ylabel("Error")
+    plt.title(
+        f"Training and Validation Error over Epochs - Test error: {test_error:.6f}"
+    )
+    plt.legend()
+    plt.grid(True)
+
+    # Show the plot
+    plt.show()
 
 
 class NeuralNet:
@@ -46,6 +73,9 @@ class NeuralNet:
         self.fact_derivative = fact_derivative
         self.validation_percentage = validation_percentage
         self.num_of_epochs = num_of_epochs
+
+        # initialize loss epochs cache
+        self._cache_loss_epochs: "list[list[float]]" = []
 
         # initialize all neurons for all given layers
         self.xi: "list[np.ndarray]" = []
@@ -100,22 +130,23 @@ class NeuralNet:
             self.w[layer - 1] -= self.learning_rate * d_w_prev
             self.theta[layer - 1] += self.learning_rate * d_theta_prev
 
-    def _compute_mean_square_error(
-        self, data: "np.ndarray", y: "np.ndarray"
-    ) -> "float":
+    def _compute_mean_square_error(self, X: "np.ndarray", y: "np.ndarray") -> "float":
         error = 0.0
-        total_records, _ = data.shape
+        total_records, _ = X.shape
         for i in range(total_records):
-            pred = self._forward(data[i])
+            pred = self._forward(X[i])
             error += np.sum((pred - y[i]) ** 2)
         return error / total_records
 
-    def predict(self, data: "np.ndarray") -> "np.ndarray":
+    def predict(self, X: "np.ndarray") -> "np.ndarray":
         predictions = []
-        total_records, _ = data.shape
+        total_records, _ = X.shape
         for i in range(total_records):
-            predictions.append(self._forward(data[i]))
+            predictions.append(self._forward(X[i]))
         return np.array(predictions)
+
+    def loss_epochs(self) -> "np.ndarray":
+        return self._cache_loss_epochs
 
     def _split_data(
         self, data: "np.ndarray", total_records: "int"
@@ -133,11 +164,16 @@ class NeuralNet:
         X: "np.ndarray",
         y: "np.ndarray",
     ) -> None:
+        _train_errors: "list[float]" = []
+        _val_errors: "list[float]" = []
         # Training the network with mini-batch stochastic gradient descent
         original_total_records, _ = X.shape
         # Split output train into train and validation
         y_train, y_val = self._split_data(y, original_total_records)
         X_train, data_val = self._split_data(X, original_total_records)
+
+        # empty cache loss epochs
+        self._cache_loss_epochs = []
         for epoch in range(self.num_of_epochs):
             for _ in range(X_train.shape[0]):
                 # select a random item from the records
@@ -153,13 +189,18 @@ class NeuralNet:
                 self._update_weights(d_w, d_theta)
 
             # After an epoch is finished calculate the error for training and validation sets
-            train_error = self._compute_mean_square_error(X_train, y_train)
-            val_error = self._compute_mean_square_error(data_val, y_val)
+            _train_error = self._compute_mean_square_error(X_train, y_train)
+            _val_error = self._compute_mean_square_error(data_val, y_val)
+
+            # Populate the train and validation error lists
+            _train_errors.append(_train_error)
+            _val_errors.append(_val_error)
 
             if epoch % 10 == 0 or epoch == self.num_of_epochs - 1:
                 print(
-                    f"Epoch {epoch}, Train Error: {train_error:.6f}, Val Error: {val_error:.6f}"
+                    f"Epoch {epoch}, Train Error: {_train_error:.6f}, Val Error: {_val_error:.6f}"
                 )
+        self._cache_loss_epochs = np.array([_train_errors, _val_errors])
 
 
 if __name__ == "__main__":
@@ -194,4 +235,6 @@ if __name__ == "__main__":
 
     # Evaluate test performance
     test_error = np.mean((predictions - y_test) ** 2)
-    print(f"Test Error (MSE): {test_error:.6f}")
+
+    # Plot the results
+    plot(test_error, neuronet.loss_epochs())
