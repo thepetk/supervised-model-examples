@@ -1,4 +1,4 @@
-from typing import Any, Callable
+from typing import Callable
 import numpy as np
 
 DATA_TEST_PATH = "data_test.csv"
@@ -130,21 +130,21 @@ class NeuralNet:
 
     def fit(
         self,
-        data: "np.ndarray",
+        X: "np.ndarray",
         y: "np.ndarray",
     ) -> None:
         # Training the network with mini-batch stochastic gradient descent
-        original_total_records, _ = data.shape
+        original_total_records, _ = X.shape
         # Split output train into train and validation
         y_train, y_val = self._split_data(y, original_total_records)
-        data_train, data_val = self._split_data(data, original_total_records)
+        X_train, data_val = self._split_data(X, original_total_records)
         for epoch in range(self.num_of_epochs):
-            for _ in range(data_train.shape[0]):
+            for _ in range(X_train.shape[0]):
                 # select a random item from the records
-                m = np.random.randint(data_train.shape[0])
+                m = np.random.randint(X_train.shape[0])
 
                 # Run the forward propagation
-                self._forward(data_train[m])
+                self._forward(X_train[m])
 
                 # Get the weight and threshold changes after backward propagation
                 d_w, d_theta = self._backward(y_train[m])
@@ -153,7 +153,7 @@ class NeuralNet:
                 self._update_weights(d_w, d_theta)
 
             # After an epoch is finished calculate the error for training and validation sets
-            train_error = self._compute_mean_square_error(data_train, y_train)
+            train_error = self._compute_mean_square_error(X_train, y_train)
             val_error = self._compute_mean_square_error(data_val, y_val)
 
             if epoch % 10 == 0 or epoch == self.num_of_epochs - 1:
@@ -163,13 +163,13 @@ class NeuralNet:
 
 
 if __name__ == "__main__":
-    data_train = np.genfromtxt(DATA_TRAIN_PATH, delimiter=",")
+    X_train = np.genfromtxt(DATA_TRAIN_PATH, delimiter=",")
     y_train = np.genfromtxt(RESULTS_TRAIN_PATH, delimiter=",")
-    test_data = np.genfromtxt(DATA_TEST_PATH, delimiter=",")
-    test_y = np.genfromtxt(RESULTS_TEST_PATH, delimiter=",")
+    X_test = np.genfromtxt(DATA_TEST_PATH, delimiter=",")
+    y_test = np.genfromtxt(RESULTS_TEST_PATH, delimiter=",")
 
     # Get the total number of features
-    _, total_features = data_train.shape
+    _, total_features = X_train.shape
 
     # Initialize the neural network
     total_layers = [total_features] + HIDDEN_LAYERS + OUTPUT_LAYER
@@ -185,13 +185,13 @@ if __name__ == "__main__":
 
     # Train the neural network
     neuronet.fit(
-        data_train,
+        X_train,
         y_train,
     )
 
     # After training we are ready to test
-    predictions = neuronet.predict(test_data)
+    predictions = neuronet.predict(X_test)
 
     # Evaluate test performance
-    test_error = np.mean((predictions - test_y) ** 2)
+    test_error = np.mean((predictions - y_test) ** 2)
     print(f"Test Error (MSE): {test_error:.6f}")
