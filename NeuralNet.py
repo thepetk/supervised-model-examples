@@ -31,38 +31,44 @@ class NeuralNet:
         for layer in range(self.L):
             self.xi.append(np.zeros(self.n[layer]))
 
-        # initialize all weights for all given layers
+        # initialize all weights and thresholds for all given layers
         self.w: "list[np.ndarray]" = []
+        self.theta: "list[np.ndarray]" = []
         for layer in range(1, self.L):
             self.w.append(np.zeros((self.n[layer], self.n[layer - 1])))
+            self.theta.append(np.zeros((self.n[layer], 1)))
 
     def forward(self, x: "np.ndarray") -> "np.ndarray":
         self.xi[0] = x.reshape(-1, 1)
         for layer in range(1, self.L):
-            z = np.dot(self.w[layer - 1], self.xi[layer - 1])
+            z = self.w[layer - 1] @ self.xi[layer - 1] + self.theta[layer - 1]
             self.xi[layer] = fact(z)
         return self.xi[-1]
 
     def backward(self, y: "np.ndarray") -> "tuple[np.ndarray, np.ndarray]":
         residual = self.xi[-1] - y
         d_w = [None] * self.L
+        d_theta = [None] * self.L
 
         for layer in reversed(range(self.L)):
-            d_w[layer] = np.dot(residual, self.xi[layer - 1].T)
+            d_w[layer] = residual @ self.xi[layer - 1].T
+            d_theta[layer] = residual
             if layer > 1:
-                residual = np.dot(self.w[layer - 1].T, residual) * fact_derivative(
-                    self.xi[layer - 1]
+                residual = (
+                    self.w[layer - 1].T @ residual * fact_derivative(self.xi[layer - 1])
                 )
 
-        return d_w
+        return d_w, d_theta
 
     def update_weights(
         self,
         d_w: "list[np.ndarray]",
+        d_theta: "list[np.ndarray]",
         learning_rate: "float",
     ) -> None:
         for layer in range(1, self.L):
             self.w[layer - 1] -= learning_rate * d_w[layer]
+            self.theta[layer - 1] -= learning_rate * d_theta[layer]
 
     def compute_mean_square_error(self, data: "np.ndarray", y: "np.ndarray") -> Any:
         error = 0.0
@@ -99,10 +105,10 @@ class NeuralNet:
                 self.forward(data_train[m])
 
                 # Get the weight gradients after backward propagation
-                d_w = self.backward(y_train[m])
+                d_w, d_theta = self.backward(y_train[m])
 
                 # Adjust weight according to results of training
-                self.update_weights(d_w, learning_rate)
+                self.update_weights(d_w, d_theta, learning_rate)
 
             # After an epoch is finished calculate the error for training and validation sets
             train_error = self.compute_mean_square_error(data_train, y_train)
