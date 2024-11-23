@@ -3,7 +3,7 @@ import logging
 import pandas as pd
 
 from typing import Literal
-from sklearn.preprocessing import OneHotEncoder
+from sklearn.preprocessing import MinMaxScaler, OneHotEncoder
 
 AVAILABLE_NULL_POLICIES = ("all", "any")
 DATA_PATH = os.getenv("DATA_PATH", "banana_quality_dataset.csv")
@@ -87,7 +87,8 @@ class PreProcessor:
         """
         normalizes the data by subtracting the mean and divide with standard deviation per column
         """
-        return (self.data - self.data.mean()) / self.data.std()
+        scaler = MinMaxScaler()
+        return pd.DataFrame(scaler.fit_transform(self.data), columns=self.data.columns)
 
     def _concatinate(self, concat_data_frame: "pd.DataFrame") -> "pd.DataFrame":
         """concatinates data with a given dataframe"""
@@ -147,7 +148,7 @@ if __name__ == "__main__":
     test_dataset = dataset.drop(train_dataset.index)
 
     # Generate the new csv files
-    train_dataset.to_csv("data_train.csv", index=False)
-    output.to_csv("result_train.csv", index=False)
-    test_dataset.to_csv("data_test.csv", index=False)
-    output.to_csv("result_test.csv", index=False)
+    train_dataset.to_csv("data_train.csv", index=False, header=False)
+    output.to_csv("result_train.csv", index=False, header=False)
+    test_dataset.to_csv("data_test.csv", index=False, header=False)
+    output.to_csv("result_test.csv", index=False, header=False)
