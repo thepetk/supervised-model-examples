@@ -6,6 +6,7 @@ DATA_TEST_PATH = "data_test.csv"
 DATA_TRAIN_PATH = "data_train.csv"
 HIDDEN_LAYERS = [32, 12]
 LEARNING_RATE = 0.01
+MOMENTUM = 0.9
 NUM_OF_EPOCHS = 1000
 OUTPUT_LAYER = [1]
 PLOT_FIGURE_SIZE = (8, 6)
@@ -54,6 +55,7 @@ class NeuralNet:
         total_layers: "int",
         units_per_layer: "list[int]",
         learning_rate: "float",
+        momentum: "float",
         fact: "Callable[...]",
         fact_derivative: "Callable[...]",
         validation_percentage: "float",
@@ -66,9 +68,10 @@ class NeuralNet:
             self.n
         ), "total layers should be equivalent to the length of units_per_layer"
 
-        # initialize learning rate, activation function, validation percentage
-        # and number of epochs
+        # initialize learning rate, activation function, validation percentage,
+        # momentum and number of epochs
         self.learning_rate = learning_rate
+        self.momentum = momentum
         self.fact = fact
         self.fact_derivative = fact_derivative
         self.validation_percentage = validation_percentage
@@ -97,7 +100,7 @@ class NeuralNet:
         for layer in range(1, self.L):
             h = self.w[layer - 1] @ self.xi[layer - 1] - self.theta[layer - 1]
             self.xi[layer] = self.fact(h)
-        return self.xi[-1]
+        return self.xi[-1][0][0]
 
     def _backward(self, y: "np.ndarray") -> "tuple[np.ndarray, np.ndarray]":
         """
@@ -127,15 +130,20 @@ class NeuralNet:
         for layer in range(1, self.L):
             d_w_prev = d_w[layer]
             d_theta_prev = d_theta[layer]
-            self.w[layer - 1] -= self.learning_rate * d_w_prev
-            self.theta[layer - 1] += self.learning_rate * d_theta_prev
+            self.w[layer - 1] = (
+                self.momentum * self.w[layer - 1] - self.learning_rate * d_w_prev
+            )
+            self.theta[layer - 1] = (
+                self.momentum * self.theta[layer - 1]
+                + self.learning_rate * d_theta_prev
+            )
 
     def _compute_mean_square_error(self, X: "np.ndarray", y: "np.ndarray") -> "float":
         error = 0.0
         total_records, _ = X.shape
         for i in range(total_records):
             pred = self._forward(X[i])
-            error += np.sum((pred - y[i]) ** 2)
+            error += (pred - y[i]) ** 2
         return error / total_records
 
     def predict(self, X: "np.ndarray") -> "np.ndarray":
@@ -174,7 +182,7 @@ class NeuralNet:
 
         # empty cache loss epochs
         self._cache_loss_epochs = []
-        for epoch in range(self.num_of_epochs):
+        for _ in range(self.num_of_epochs):
             for _ in range(X_train.shape[0]):
                 # select a random item from the records
                 m = np.random.randint(X_train.shape[0])
@@ -196,10 +204,6 @@ class NeuralNet:
             _train_errors.append(_train_error)
             _val_errors.append(_val_error)
 
-            if epoch % 10 == 0 or epoch == self.num_of_epochs - 1:
-                print(
-                    f"Epoch {epoch}, Train Error: {_train_error:.6f}, Val Error: {_val_error:.6f}"
-                )
         self._cache_loss_epochs = np.array([_train_errors, _val_errors])
 
 
@@ -218,6 +222,7 @@ if __name__ == "__main__":
         total_layers=len(total_layers),
         units_per_layer=total_layers,
         learning_rate=LEARNING_RATE,
+        momentum=MOMENTUM,
         fact=relu,
         fact_derivative=relu_derivative,
         validation_percentage=VALIDATION_RATIO,
