@@ -1,4 +1,3 @@
-import math
 from typing import Callable
 import matplotlib.pyplot as plt
 import numpy as np
