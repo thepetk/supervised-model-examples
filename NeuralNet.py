@@ -7,18 +7,6 @@ from sklearn.metrics import (
     mean_squared_error,
 )
 
-DATA_TEST_PATH = "data_test.csv"
-DATA_TRAIN_PATH = "data_train.csv"
-HIDDEN_LAYERS = [32, 24, 12]
-LEARNING_RATE = 0.01
-MOMENTUM = 0.85
-NUM_OF_EPOCHS = 1000
-OUTPUT_LAYER = [1]
-PLOT_FIGURE_SIZE = (8, 6)
-RESULTS_TEST_PATH = "result_test.csv"
-RESULTS_TRAIN_PATH = "result_train.csv"
-VALIDATION_RATIO = 0.15
-
 
 # activation methods (relu + relu_derivative)
 def relu(x: "np.ndarray") -> "np.ndarray":
@@ -47,26 +35,60 @@ def tanh_derivative(x):
     return 1 - tanh(x) ** 2
 
 
+# Configuration Variables
+FACT = tanh
+FACT_DERIVATIVE = tanh_derivative
+DATA_TEST_PATH = "data_test.csv"
+DATA_TRAIN_PATH = "data_train.csv"
+HIDDEN_LAYERS = [32, 24, 12]
+LEARNING_RATE = 0.01
+MOMENTUM = 0.9
+NUM_OF_EPOCHS = 1000
+OUTPUT_LAYER = [1]
+PLOT_FIGURE_SIZE = (12, 6)
+RESULTS_TEST_PATH = "result_test.csv"
+RESULTS_TRAIN_PATH = "result_train.csv"
+VALIDATION_RATIO = 0.15
+
+
 # method to plot the evolution of the neural network
 def plot(
     test_error: "float",
+    predictions: "np.ndarray",
+    y_test: "np.ndarray",
     errors: "np.ndarray",
     figsize: "tuple[int, int]" = PLOT_FIGURE_SIZE,
 ) -> None:
     _num_of_epochs = range(1, len(errors[0]) + 1)
+    """
+    Creates a plot with 2 subplots:
+    - A comparison of predicted vs true values
+    - An evolution error plot.
+    """
+    _, axes = plt.subplots(1, 2, figsize=figsize)
+    axes[0].scatter(y_test, predictions, color="blue", label="Predictions")
+    axes[0].plot(
+        [y_test.min(), y_test.max()],
+        [y_test.min(), y_test.max()],
+        "r--",
+        label="Ideal Prediction Line",
+    )
+    axes[0].set_title("Predictions vs Actual Values")
+    axes[0].set_xlabel("Actual Values (zμ)")
+    axes[0].set_ylabel("Predicted Values (yμ)")
+    axes[0].legend()
+    axes[0].grid(True)
 
-    plt.figure(figsize=figsize)
-    plt.plot(_num_of_epochs, errors[0], label="Training Error", marker="o")
-    plt.plot(_num_of_epochs, errors[1], label="Validation Error", marker="x")
+    axes[1].plot(_num_of_epochs, errors[0], label="Training Error", marker="o")
+    axes[1].plot(_num_of_epochs, errors[1], label="Validation Error", marker="x")
 
     # Add labels, title, legend, and grid
-    plt.xlabel("Epochs")
-    plt.ylabel("Error")
-    plt.title(
-        f"Training and Validation Error over Epochs - Test error: {test_error:.6f}"
-    )
-    plt.legend()
-    plt.grid(True)
+    axes[1].set_xlabel("Epochs")
+    axes[1].set_ylabel("Error")
+    axes[1].set_title(f"Error Evolution - MSE: {test_error:.6f}")
+    axes[1].legend()
+    axes[1].grid(True)
+    # Scatter plot to compare predictions to actual values
 
     # Show the plot
     plt.show()
@@ -264,8 +286,8 @@ if __name__ == "__main__":
         units_per_layer=total_layers,
         learning_rate=LEARNING_RATE,
         momentum=MOMENTUM,
-        fact=tanh,
-        fact_derivative=tanh_derivative,
+        fact=FACT,
+        fact_derivative=FACT_DERIVATIVE,
         validation_percentage=VALIDATION_RATIO,
         num_of_epochs=NUM_OF_EPOCHS,
     )
@@ -295,5 +317,5 @@ if __name__ == "__main__":
         f"Neural Network with BP Mean Absolute Percentage Error:: {nn_mean_absolute_percentage_error:.6f}"
     )
 
-    # Plot the results
-    plot(test_error, neuronet.loss_epochs())
+    # create plots
+    plot(test_error, predictions, y_test, neuronet.loss_epochs())
