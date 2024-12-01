@@ -1,3 +1,4 @@
+import math
 from typing import Callable
 import matplotlib.pyplot as plt
 import numpy as np
@@ -10,8 +11,8 @@ from sklearn.metrics import (
 DATA_TEST_PATH = "data_test.csv"
 DATA_TRAIN_PATH = "data_train.csv"
 HIDDEN_LAYERS = [32, 24, 12]
-LEARNING_RATE = 0.001
-MOMENTUM = 0.9
+LEARNING_RATE = 0.01
+MOMENTUM = 0.85
 NUM_OF_EPOCHS = 1000
 OUTPUT_LAYER = [1]
 PLOT_FIGURE_SIZE = (8, 6)
@@ -35,6 +36,16 @@ def sigmoid(x: "np.ndarray") -> "np.ndarray":
 
 def sigmoid_derivative(x: "np.ndarray") -> "np.ndarray":
     return sigmoid(x) * (1 - sigmoid(x))
+
+
+def tanh(x):
+    exp_pos = np.exp(x)
+    exp_neg = np.exp(-x)
+    return (exp_pos - exp_neg) / (exp_pos + exp_neg)
+
+
+def tanh_derivative(x):
+    return 1 - tanh(x) ** 2
 
 
 # method to plot the evolution of the neural network
@@ -171,7 +182,7 @@ class NeuralNet:
         predictions = []
         total_records, _ = X.shape
         for i in range(total_records):
-            predictions.append(self._forward(X[i]))
+            predictions.append(self._forward(X[i])[0][0])
         return np.array(predictions)
 
     def loss_epochs(self) -> "np.ndarray":
@@ -220,7 +231,11 @@ class NeuralNet:
             # After an epoch is finished calculate the error for training and validation sets
             # _train_error = mean_squared_error(X_train, y_train)
             _train_error = self._compute_mean_squared_error(X_train, y_train)
-            _val_error = self._compute_mean_squared_error(data_val, y_val)
+            _val_error = (
+                0
+                if self.validation_percentage == 0
+                else self._compute_mean_squared_error(data_val, y_val)
+            )
             # _val_error = mean_squared_error(data_val, y_val)
             if epoch % 10 == 0 or epoch == self.num_of_epochs - 1:
                 print(
@@ -250,8 +265,8 @@ if __name__ == "__main__":
         units_per_layer=total_layers,
         learning_rate=LEARNING_RATE,
         momentum=MOMENTUM,
-        fact=sigmoid,
-        fact_derivative=sigmoid_derivative,
+        fact=tanh,
+        fact_derivative=tanh_derivative,
         validation_percentage=VALIDATION_RATIO,
         num_of_epochs=NUM_OF_EPOCHS,
     )
