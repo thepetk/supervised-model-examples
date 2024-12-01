@@ -1,11 +1,16 @@
 from typing import Callable
 import matplotlib.pyplot as plt
 import numpy as np
+from sklearn.metrics import (
+    mean_absolute_error,
+    mean_absolute_percentage_error,
+    mean_squared_error,
+)
 
 DATA_TEST_PATH = "data_test.csv"
 DATA_TRAIN_PATH = "data_train.csv"
-HIDDEN_LAYERS = [32, 12]
-LEARNING_RATE = 0.01
+HIDDEN_LAYERS = [32, 24, 12]
+LEARNING_RATE = 0.001
 MOMENTUM = 0.9
 NUM_OF_EPOCHS = 1000
 OUTPUT_LAYER = [1]
@@ -22,6 +27,14 @@ def relu(x: "np.ndarray") -> "np.ndarray":
 
 def relu_derivative(x: "np.ndarray") -> "np.ndarray":
     return np.where(x > 0, 1, 0)
+
+
+def sigmoid(x: "np.ndarray") -> "np.ndarray":
+    return 1 / (1 + np.exp(-x))
+
+
+def sigmoid_derivative(x: "np.ndarray") -> "np.ndarray":
+    return sigmoid(x) * (1 - sigmoid(x))
 
 
 # method to plot the evolution of the neural network
@@ -92,34 +105,48 @@ class NeuralNet:
             self.w.append(np.random.randn(self.n[layer], self.n[layer - 1]))
             self.theta.append(np.random.randn(self.n[layer], 1))
 
+        self.d_w_prev = None
+        self.d_theta_prev = None
+
     def _forward(self, x: "np.ndarray") -> "np.ndarray":
         """
         performs feed forward propagation for a given x train data array
         """
         self.xi[0] = x.reshape(-1, 1)
         for layer in range(1, self.L):
-            h = self.w[layer - 1] @ self.xi[layer - 1] - self.theta[layer - 1]
+            h = np.dot(self.w[layer - 1], self.xi[layer - 1]) - self.theta[layer - 1]
             self.xi[layer] = self.fact(h)
-        return self.xi[-1][0][0]
+        return self.xi[-1]
 
     def _backward(self, y: "np.ndarray") -> "tuple[np.ndarray, np.ndarray]":
         """
         performs back propagation for a given y array with the result
         """
-        delta = self.xi[-1] - y
+        delta = (self.xi[-1] - y) * self.fact_derivative(self.xi[-1])
         d_w = [None] * self.L
         d_theta = [None] * self.L
 
         for layer in reversed(range(self.L)):
-            d_w[layer] = delta @ self.xi[layer - 1].T
-            d_theta[layer] = delta
-            if layer > 1:
-                delta = (
-                    self.w[layer - 1].T
-                    @ delta
-                    * self.fact_derivative(self.xi[layer - 1])
+            if self.d_w_prev is None:
+                d_w[layer] = -self.learning_rate * (delta @ self.xi[layer - 1].T)
+                d_theta[layer] = self.learning_rate * delta
+            else:
+                d_w[layer] = (
+                    -self.learning_rate * (delta @ self.xi[layer - 1].T)
+                    + self.momentum * self.d_w_prev[layer]
+                )
+                d_theta[layer] = (
+                    self.learning_rate * delta
+                    + self.momentum * self.d_theta_prev[layer]
                 )
 
+            if layer > 1:
+                delta = (self.w[layer - 1].T @ delta) * self.fact_derivative(
+                    self.xi[layer - 1]
+                )
+
+        self.d_w_prev = d_w
+        self.d_theta_prev = d_theta
         return d_w, d_theta
 
     def _update_weights(
@@ -127,24 +154,18 @@ class NeuralNet:
         d_w: "list[np.ndarray]",
         d_theta: "list[np.ndarray]",
     ) -> None:
-        for layer in range(1, self.L):
-            d_w_prev = d_w[layer]
-            d_theta_prev = d_theta[layer]
-            self.w[layer - 1] = (
-                self.momentum * self.w[layer - 1] - self.learning_rate * d_w_prev
-            )
-            self.theta[layer - 1] = (
-                self.momentum * self.theta[layer - 1]
-                + self.learning_rate * d_theta_prev
-            )
 
-    def _compute_mean_square_error(self, X: "np.ndarray", y: "np.ndarray") -> "float":
-        error = 0.0
+        for layer in range(1, self.L):
+            self.w[layer - 1] += d_w[layer]
+            self.theta[layer - 1] += d_theta[layer]
+
+    def _compute_mean_squared_error(self, X: "np.ndarray", y: "np.ndarray") -> "float":
         total_records, _ = X.shape
+        predictions = []
         for i in range(total_records):
             pred = self._forward(X[i])
-            error += (pred - y[i]) ** 2
-        return error / total_records
+            predictions.append(pred[0][0])
+        return mean_squared_error(predictions, y)
 
     def predict(self, X: "np.ndarray") -> "np.ndarray":
         predictions = []
@@ -182,7 +203,7 @@ class NeuralNet:
 
         # empty cache loss epochs
         self._cache_loss_epochs = []
-        for _ in range(self.num_of_epochs):
+        for epoch in range(self.num_of_epochs):
             for _ in range(X_train.shape[0]):
                 # select a random item from the records
                 m = np.random.randint(X_train.shape[0])
@@ -197,8 +218,14 @@ class NeuralNet:
                 self._update_weights(d_w, d_theta)
 
             # After an epoch is finished calculate the error for training and validation sets
-            _train_error = self._compute_mean_square_error(X_train, y_train)
-            _val_error = self._compute_mean_square_error(data_val, y_val)
+            # _train_error = mean_squared_error(X_train, y_train)
+            _train_error = self._compute_mean_squared_error(X_train, y_train)
+            _val_error = self._compute_mean_squared_error(data_val, y_val)
+            # _val_error = mean_squared_error(data_val, y_val)
+            if epoch % 10 == 0 or epoch == self.num_of_epochs - 1:
+                print(
+                    f"Epoch {epoch}, Train Error: {_train_error:.6f}, Val Error: {_val_error:.6f}"
+                )
 
             # Populate the train and validation error lists
             _train_errors.append(_train_error)
@@ -223,8 +250,8 @@ if __name__ == "__main__":
         units_per_layer=total_layers,
         learning_rate=LEARNING_RATE,
         momentum=MOMENTUM,
-        fact=relu,
-        fact_derivative=relu_derivative,
+        fact=sigmoid,
+        fact_derivative=sigmoid_derivative,
         validation_percentage=VALIDATION_RATIO,
         num_of_epochs=NUM_OF_EPOCHS,
     )
@@ -240,6 +267,19 @@ if __name__ == "__main__":
 
     # Evaluate test performance
     test_error = np.mean((predictions - y_test) ** 2)
+
+    # Get the neural network BP mean square, mean absolute and mean absolute percentage error
+    nn_mean_square_error = mean_squared_error(y_test, predictions)
+    nn_mean_absolute_error = mean_absolute_error(y_test, predictions)
+    nn_mean_absolute_percentage_error = mean_absolute_percentage_error(
+        y_test, predictions
+    )
+
+    print(f"Neural Network with BP Mean Square Error:: {nn_mean_square_error:.6f}")
+    print(f"Neural Network with BP Mean Absolute Error:: {nn_mean_absolute_error:.6f}")
+    print(
+        f"Neural Network with BP Mean Absolute Percentage Error:: {nn_mean_absolute_percentage_error:.6f}"
+    )
 
     # Plot the results
     plot(test_error, neuronet.loss_epochs())
