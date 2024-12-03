@@ -35,17 +35,30 @@ def tanh_derivative(x):
     return 1 - tanh(x) ** 2
 
 
+# Regularization methods
+
+
+def l1(delta: "np.ndarray", lambda_reg: "float", weights: "np.ndarray") -> "np.ndarray":
+    return delta + lambda_reg * np.sum(np.abs(weights))
+
+
+def l2(delta: "np.ndarray", lambda_reg: "float", weights: "np.ndarray") -> "np.ndarray":
+    return delta + lambda_reg * np.sum(np.square(weights))
+
+
 # Configuration Variables
 FACT = tanh
 FACT_DERIVATIVE = tanh_derivative
 DATA_TEST_PATH = "data_test.csv"
 DATA_TRAIN_PATH = "data_train.csv"
 HIDDEN_LAYERS = [32, 24, 12]
+LAMBDA_REG = 0.0001
 LEARNING_RATE = 0.01
 MOMENTUM = 0.9
 NUM_OF_EPOCHS = 1000
 OUTPUT_LAYER = [1]
 PLOT_FIGURE_SIZE = (12, 6)
+REGULARIZATION = l2
 RESULTS_TEST_PATH = "result_test.csv"
 RESULTS_TRAIN_PATH = "result_train.csv"
 VALIDATION_RATIO = 0.15
@@ -105,6 +118,8 @@ class NeuralNet:
         fact_derivative: "Callable[...]",
         validation_percentage: "float",
         num_of_epochs: "int",
+        lambda_reg: "float" = LAMBDA_REG,
+        regularization: "Callable[...]" = REGULARIZATION,
     ) -> None:
         self.L = total_layers
         self.n = units_per_layer
@@ -121,6 +136,8 @@ class NeuralNet:
         self.fact_derivative = fact_derivative
         self.validation_percentage = validation_percentage
         self.num_of_epochs = num_of_epochs
+        self.lambda_reg = lambda_reg
+        self.regularization = regularization
 
         # initialize loss epochs cache
         self._cache_loss_epochs: "list[list[float]]" = []
@@ -155,6 +172,7 @@ class NeuralNet:
         performs back propagation for a given y array with the result
         """
         delta = (self.xi[-1] - y) * self.fact_derivative(self.xi[-1])
+        delta = self.regularization(delta, self.lambda_reg, self.w[-1])
         d_w = [None] * self.L
         d_theta = [None] * self.L
 
