@@ -52,13 +52,13 @@ FACT_DERIVATIVE = tanh_derivative
 DATA_TEST_PATH = "data_test.csv"
 DATA_TRAIN_PATH = "data_train.csv"
 HIDDEN_LAYERS = [32, 24, 12]
-LAMBDA_REG = 0.0001
+LAMBDA_REG = 0.00001
 LEARNING_RATE = 0.01
 MOMENTUM = 0.9
 NUM_OF_EPOCHS = 1000
 OUTPUT_LAYER = [1]
 PLOT_FIGURE_SIZE = (12, 6)
-REGULARIZATION = l2
+REGULARIZATION = l1
 RESULTS_TEST_PATH = "result_test.csv"
 RESULTS_TRAIN_PATH = "result_train.csv"
 VALIDATION_RATIO = 0.15
@@ -120,6 +120,7 @@ class NeuralNet:
         num_of_epochs: "int",
         lambda_reg: "float" = LAMBDA_REG,
         regularization: "Callable[...]" = REGULARIZATION,
+        verbose: "bool" = True,
     ) -> None:
         self.L = total_layers
         self.n = units_per_layer
@@ -138,6 +139,8 @@ class NeuralNet:
         self.num_of_epochs = num_of_epochs
         self.lambda_reg = lambda_reg
         self.regularization = regularization
+        # if set true it gives a more verbose output
+        self.verbose = verbose
 
         # initialize loss epochs cache
         self._cache_loss_epochs: "list[list[float]]" = []
@@ -234,9 +237,9 @@ class NeuralNet:
         splits the data into validation and training according to the give
         validation percentage
         """
+        indices = np.random.permutation(range(total_records))
         _val_splitter = int(self.validation_percentage * total_records)
-
-        return data[_val_splitter:], data[:_val_splitter]
+        return data[indices[_val_splitter:]], data[indices[:_val_splitter]]
 
     def fit(
         self,
@@ -275,8 +278,7 @@ class NeuralNet:
                 if self.validation_percentage == 0
                 else self._compute_mean_squared_error(data_val, y_val)
             )
-            # _val_error = mean_squared_error(data_val, y_val)
-            if epoch % 10 == 0 or epoch == self.num_of_epochs - 1:
+            if self.verbose and (epoch % 10 == 0 or epoch == self.num_of_epochs - 1):
                 print(
                     f"Epoch {epoch}, Train Error: {_train_error:.6f}, Val Error: {_val_error:.6f}"
                 )
