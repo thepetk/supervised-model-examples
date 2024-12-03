@@ -48,7 +48,7 @@ class PreProcessor:
         """
         removes all null-na rows found using the given null policy
         """
-        return self.data.dropna(axis=0, how=self.null_policy)
+        return self.data.dropna(how=self.null_policy)
 
     def _clean_excluded_columns(self) -> "pd.DataFrame":
         """
@@ -90,8 +90,8 @@ class PreProcessor:
         scaler = MinMaxScaler()
         return pd.DataFrame(scaler.fit_transform(self.data), columns=self.data.columns)
 
-    def _concatinate(self, concat_data_frame: "pd.DataFrame") -> "pd.DataFrame":
-        """concatinates data with a given dataframe"""
+    def _concatenate(self, concat_data_frame: "pd.DataFrame") -> "pd.DataFrame":
+        """concatenates data with a given dataframe"""
         return pd.concat([self.data, concat_data_frame], axis=1)
 
     def preprocess(self) -> "pd.DataFrame":
@@ -113,8 +113,11 @@ class PreProcessor:
         # normalize the dataset
         self.data = self._normalize()
 
-        # concatinate with one hot encoder result
-        self.data = self._concatinate(_one_hot_encoding_df)
+        # concatenate with one hot encoder result
+        self.data = self._concatenate(_one_hot_encoding_df)
+
+        # handle again any null values post normalization
+        self.data = self._apply_null_policy()
 
         return self.data
 
