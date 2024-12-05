@@ -118,6 +118,7 @@ class NeuralNet:
         fact_derivative: "Callable[...]",
         validation_percentage: "float",
         num_of_epochs: "int",
+        regularize: "bool" = True,
         lambda_reg: "float" = LAMBDA_REG,
         regularization: "Callable[...]" = REGULARIZATION,
         verbose: "bool" = True,
@@ -138,6 +139,7 @@ class NeuralNet:
         self.validation_percentage = validation_percentage
         self.num_of_epochs = num_of_epochs
         self.lambda_reg = lambda_reg
+        self.regularize = regularize
         self.regularization = regularization
         # if set true it gives a more verbose output
         self.verbose = verbose
@@ -175,7 +177,12 @@ class NeuralNet:
         performs back propagation for a given y array with the result
         """
         delta = (self.xi[-1] - y) * self.fact_derivative(self.xi[-1])
-        delta = self.regularization(delta, self.lambda_reg, self.w[-1])
+
+        delta = (
+            delta
+            if self.regularize is False
+            else self.regularization(delta, self.lambda_reg, self.w[-1])
+        )
         d_w = [None] * self.L
         d_theta = [None] * self.L
 
@@ -231,15 +238,20 @@ class NeuralNet:
         return self._cache_loss_epochs
 
     def _split_data(
-        self, data: "np.ndarray", total_records: "int"
-    ) -> "tuple[np.ndarray, np.ndarray]":
+        self, y: "np.ndarray", X: "np.ndarray", total_records: "int"
+    ) -> "tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]":
         """
         splits the data into validation and training according to the give
         validation percentage
         """
         indices = np.random.permutation(range(total_records))
         _val_splitter = int(self.validation_percentage * total_records)
-        return data[indices[_val_splitter:]], data[indices[:_val_splitter]]
+        return (
+            y[indices[_val_splitter:]],
+            y[indices[:_val_splitter]],
+            X[indices[_val_splitter:]],
+            X[indices[:_val_splitter]],
+        )
 
     def fit(
         self,
@@ -251,8 +263,7 @@ class NeuralNet:
         # Training the network with mini-batch stochastic gradient descent
         original_total_records, _ = X.shape
         # Split output train into train and validation
-        y_train, y_val = self._split_data(y, original_total_records)
-        X_train, data_val = self._split_data(X, original_total_records)
+        y_train, y_val, X_train, X_val = self._split_data(y, X, original_total_records)
 
         # empty cache loss epochs
         self._cache_loss_epochs = []
@@ -276,7 +287,7 @@ class NeuralNet:
             _val_error = (
                 0
                 if self.validation_percentage == 0
-                else self._compute_mean_squared_error(data_val, y_val)
+                else self._compute_mean_squared_error(X_val, y_val)
             )
             if self.verbose and (epoch % 10 == 0 or epoch == self.num_of_epochs - 1):
                 print(
